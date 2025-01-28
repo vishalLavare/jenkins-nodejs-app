@@ -1,31 +1,67 @@
-Vishal Lavare (github:- https://github.com/vishalLavare)
+# Jenkins Pipeline for Node.js Project Deployment
 
-To create a nodejs project in jenkins with pulling the code from git into the deployment server, building, testing, and deploying it on the deployment server
+This guide demonstrates how to create a Jenkins pipeline to build, test, and deploy a Node.js project. The pipeline pulls the code from Git, builds and tests it, and deploys it on a deployment server.
 
-we installed nodejs tool and given a name to it we have to check it bcoz we have to write it in the script Dashboard ---- Manage Jebkins ----- Tools ------- Check the name of Nodejs
+## Prerequisites
+1. **Jenkins Setup**: Ensure Jenkins is installed and running.
+2. **Node.js Tool Configuration**:
+   - Navigate to **Dashboard** -> **Manage Jenkins** -> **Tools** -> **Node.js Installation**.
+   - Install Node.js and name it (e.g., `mynode`).
+3. **SSH Agent Plugin**:
+   - Navigate to **Dashboard** -> **Manage Jenkins** -> **Plugin Manager** -> **Available Plugins**.
+   - Search for `SSH Agent` and install it.
+4. **SSH Credentials**:
+   - Navigate to **Dashboard** -> **Manage Jenkins** -> **Credentials** -> **Global** -> **Add Credentials**.
+   - Choose **Kind** as `SSH username with private key`.
+   - Provide the username (e.g., `ubuntu`) and the private key (e.g., `.pem` key of the deployment server).
 
-then we have to install the plugin for doing ssh into the live server Dashboard---Manage Jenkins----Plugin----Available Plugin----search 'SSh agent' and intall it
+## Setting Up the Project
+1. Create a local directory:
+   ```bash
+   mkdir nodeproject
+   ```
+2. Add the following files:
+   - `package.json`
+   - `index.js`
+   - `test/test.js`
+3. Push the project to a GitHub repository.
 
-then we have to create a user for ssh Dashboard ----- Manage Jenkins ---- Credentials ---- Global ---- Add Credentials ----- Kind ----- SSH username with private key ----- Username as Ubuntu --- --- and in private key enter the .pem key of the deployment server ---- create
+## Preparing the Deployment Server
+1. Launch a new server.
+2. Install the required tools:
+   ```bash
+   sudo apt update
+   sudo apt install -y nodejs npm git
+   ```
+3. Create a directory and initialize Git:
+   ```bash
+   mkdir mynodeapp
+   cd mynodeapp
+   git init
+   ```
 
-now create a directory in local (mkdir nodeproject) ----- Create package.json, index.js, test directory and test.js inside test directory ---- ----- push the package.json, index.js and test directory to github
+## Creating the Jenkins Pipeline
+1. Navigate to **Dashboard** -> **New Item** -> **Pipeline**.
+2. Configure the pipeline:
+   - Add a name and description.
+   - Under **Build Triggers**, enable **GitHub hook triggers**.
+   - Generate the pipeline syntax:
+     - Go to **Pipeline Syntax** -> **Checkout from Version Control**.
+     - Paste the GitHub repository URL and select the branch.
+     - Copy the generated script.
+3. Use the following pipeline script:
 
-getting ready Deployment server launch a new server and install npm, nodejs, and git in the server ------ create a directory (mynodeapp) and initialise git init
-
-Now create a pipeline give name and description ---- Build Triggers ----> Github hook triggers ---- pipeline syntax ----- in sample step click on checkout from version control --- ---- and paste the git repository url ---- select the branch on which we pushed the code ----- Generate Pipeline Script ----- Copy the script ----------
-
-below is the code of the whole pipeline ------>
-
+```groovy
 pipeline {
-    agent any     // it means if we are deploying the code of the available server (jenkins works on master and slave architecture)
+    agent any
     tools {
-        nodejs 'mynode'  // Node.js installation configured in Jenkins (this is the tool of nodejs and we enterred the name of it that we are given to it earlier)
+        nodejs 'mynode'  // Node.js installation configured in Jenkins
     }
     stages {
         stage('Git Clone') {
             steps {
                 echo 'Cloning from Git...'
-                checkout scmGit(branches: [[name: '*/main']], extensions: [], userRemoteConfigs: [[url: 'https://github.com/vishalLavare/jenkins-nodejs-app.git']])  // this is the script which we have generated through pipeline syntax for version control
+                checkout scmGit(branches: [[name: '*/main']], extensions: [], userRemoteConfigs: [[url: 'https://github.com/vishalLavare/jenkins-nodejs-app.git']])
             }
         }
 
@@ -46,24 +82,32 @@ pipeline {
         stage('Deploy') {
             steps {
                 echo 'Deploying to the server...'
-                echo 'Deploying Node.js project'
                 script {
-                    sshagent(['8636044c-8504-49d1-aa71-e8ad9df72ba6']) {    // this is the id of the user that we created in []
+                    sshagent(['8636044c-8504-49d1-aa71-e8ad9df72ba6']) {  // ID of the SSH credential
                         sh '''
-                        ssh -o StrictHostKeyChecking=no ubuntu@3.92.192.219 << EOF   // here we given the public ip of the deployment server
+                        ssh -o StrictHostKeyChecking=no ubuntu@3.92.192.219 << EOF
                         cd /home/ubuntu/mynodeapp || { echo "Deployment directory does not exist. Exiting..."; exit 1; }
-                        git pull https://github.com/vishalLavare/jenkins-nodejs-app.git     // the repository link from where we have to push the code (means our code is  already on that repository)
+                        git pull https://github.com/vishalLavare/jenkins-nodejs-app.git
                         npm install
                         sudo npm install -g pm2
                         pm2 restart index.js || pm2 start index.js
                         exit
                         EOF
                         '''
-
-                
                     }
                 }
             }
         }
     }
 }
+```
+
+## Key Notes
+- Replace `mynode` with the name of your Node.js tool in Jenkins.
+- Replace `8636044c-8504-49d1-aa71-e8ad9df72ba6` with your SSH credential ID.
+- Replace `3.92.192.219` with your deployment server's public IP address.
+- Ensure the deployment server directory (`/home/ubuntu/mynodeapp`) exists and is initialized with Git.
+
+## Author
+[Vishal Lavare](https://github.com/vishalLavare)
+
